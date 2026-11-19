@@ -4,13 +4,16 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+
 public class Main {
+    private static final String TOPIC = "trades.raw";
     public static void main(String[] args) throws Exception {
-        // 1. create the Properties and put the 4 settings
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
@@ -18,33 +21,40 @@ public class Main {
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         // 2. create the ObjectMapper
         ObjectMapper mapper = new ObjectMapper();
-        // 3. try-with-resources: create the KafkaProducer
+
+        Map<String, String> prefixes = new HashMap<>();
+        prefixes.put("MUREX", "MX");
+        prefixes.put("SUMMIT", "SM");
+        prefixes.put("CALYPSO", "CL");
+
+        Map<String, Integer> volumes = Map.of("MUREX", 500, "SUMMIT", 300, "CALYPSO", 200);
+
+        TradeGenerator tradeGenerator = new TradeGenerator();
+        List<String> sources = List.of("MUREX", "SUMMIT", "CALYPSO");
+
+        int sent = 0;
+
+
         try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
-            //    3a. create one Trade
-            Trade trade = new Trade(
-                    "T0001",
-                    "Murex",
-                    "Rates",
-                    "EUR",
-                    0.01,
-                    0.05,
-                    "2026-11-18"
-            );
-            //    3b. convert it to JSON
-            String json = mapper.writeValueAsString(trade);
-            //    3c. create the ProducerRecord (topic "trades.raw", key = tradeId, value = json)
-            ProducerRecord<String, String> record = new ProducerRecord<>("trades.raw",trade.tradeId() ,json);
-            //    3d. send it WITH a callback that prints partition + offset, or the error
-            producer.send(record, (metadata, exception) -> {
-                if (exception != null) {
-                    System.out.println("Error: " + exception.getMessage());
-                }
-                else {
-                    System.out.println("Offset = "+metadata.offset() + ", Partition = " + metadata.partition() + ", topic = " + metadata.topic());
-                }
-            });
+            for (String source : sources) {
+                int volume = volumes.get(source);
+                String prefix = prefixes.get(source);
+                for (int i = 1; i <= volume; i++) {
+                    Trade trade = tradeGenerator.randomTrade(source, prefix, i);
 
+                    String json = mapper.writeValueAsString(trade);
+
+                    ProducerRecord<String, String> record = new ProducerRecord<>(TOPIC,trade.tradeId() ,json);
+
+                    producer.send(record, (recordMetadata, e) -> {
+                        if (e != null) {
+                            System.err.println("Failed to send " + trade.tradeId() + ": " + e.getMessage());
+                        }
+                    });
+                    sent++;
+                }
+            }
         }
-
+        System.out.println("Sent " + sent + " trades");
     }
 }
