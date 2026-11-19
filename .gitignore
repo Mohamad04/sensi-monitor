@@ -1,0 +1,25 @@
+# Java / Maven: compiled files, regenerated at each build
+target/
+*.class
+*.jar
+*.log
+
+# IntelliJ: personal IDE settings
+.idea/
+*.iml
+out/
+
+# Node / Angular (for later)
+node_modules/
+dist/
+.angular/
+
+# Secrets and local config: NEVER push
+.env
+.env.*
+*.pem
+*.key
+
+# Operating system
+.DS_Store
+Thumbs.db
