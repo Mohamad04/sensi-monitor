@@ -14,14 +14,14 @@ public class TradeGenerator {
         int random =  ThreadLocalRandom.current().nextInt(messySources.size());
         return messySources.get(random);
     }
-    public Trade randomTrade(String source, String prefix, int index) {
+    public Trade randomTrade(String source, String prefix, int index, LocalDate asOfDate) {
         String tradeId = String.format("%s-%06d",prefix,index);
         source = messySource(source);
         String desk = DESKS.get(ThreadLocalRandom.current().nextInt(DESKS.size()));
         String currency = CURRENCIES.get(ThreadLocalRandom.current().nextInt(CURRENCIES.size()));
         double delta = Math.round(ThreadLocalRandom.current().nextDouble(-10000,10000) * 100) / 100.0;
         double vega = Math.round(ThreadLocalRandom.current().nextDouble(-2000,2000) * 100) / 100.0;
-        String date = LocalDate.now().toString();
+        String date = asOfDate.toString();
 
 
         return new Trade(
