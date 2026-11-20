@@ -4,6 +4,8 @@ import org.apache.spark.sql.types._
 
 
 object Main {
+  private val LowVolumeRatio = 0.7
+
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder()
       .appName("sensi-monitor")
@@ -48,8 +50,29 @@ object Main {
       .orderBy("asOfDate", "source")
 
     volumes.show(30, truncate = false)
+    // 1. The most recent date in the data
+    val today = volumes.agg(max("asOfDate")).first().getDate(0)
 
-    spark.stop()
+    // 2. The average of the previous days, per source
+    val history = volumes
+      .filter(col("asOfDate") < lit(today))
+      .groupBy("source")
+      .agg(round(avg("trades"), 2).as("avgPrevious"))
+
+    // 3. Today's volumes
+    val todayVolumes = volumes
+      .filter(col("asOfDate") === lit(today))
+      .select("source", "trades")
+
+    // 4. Comparison and status
+    val alerts = todayVolumes
+      .join(history, "source")
+      .withColumn("threshold", round(col("avgPrevious") * LowVolumeRatio, 2))
+      .withColumn("status",
+        when(col("trades") < col("threshold"), "LOW_VOLUME").otherwise("OK"))
+      .orderBy("source")
+
+    alerts.show(truncate = false)
     spark.stop()
   }
 }
