@@ -49,7 +49,6 @@ object Main {
       )
       .orderBy("asOfDate", "source")
 
-    volumes.show(30, truncate = false)
     // 1. The most recent date in the data
     val today = volumes.agg(max("asOfDate")).first().getDate(0)
 
@@ -72,7 +71,37 @@ object Main {
         when(col("trades") < col("threshold"), "LOW_VOLUME").otherwise("OK"))
       .orderBy("source")
 
-    alerts.show(truncate = false)
+
+    // Connection to PostgreSQL
+    val jdbcUrl = "jdbc:postgresql://localhost:5432/sensimonitor"
+    val jdbcProps = new java.util.Properties()
+    jdbcProps.put("user", "sensi")
+    jdbcProps.put("password", "sensi")
+    jdbcProps.put("driver", "org.postgresql.Driver")
+
+    // Daily volumes → table daily_volumes
+    volumes
+      .select(
+        col("asOfDate").as("as_of_date"),
+        col("source"),
+        col("trades"),
+        col("totalDelta").as("total_delta"))
+      .write.mode("overwrite")
+      .jdbc(jdbcUrl, "daily_volumes", jdbcProps)
+
+    // Today's checks → table volume_alerts
+    alerts
+      .select(
+        lit(today).as("as_of_date"),
+        col("source"),
+        col("trades"),
+        col("avgPrevious").as("avg_previous"),
+        col("threshold"),
+        col("status"))
+      .write.mode("overwrite")
+      .jdbc(jdbcUrl, "volume_alerts", jdbcProps)
+
+    println("Results written to PostgreSQL")
     spark.stop()
   }
 }

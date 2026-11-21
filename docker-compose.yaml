@@ -4,3 +4,12 @@ services:
     container_name: kafka
     ports:
       - "9092:9092"
+  postgres:
+    image: postgres:18
+    container_name: postgres
+    environment:
+      POSTGRES_DB: sensimonitor
+      POSTGRES_USER: sensi
+      POSTGRES_PASSWORD: sensi
+    ports:
+      - "5432:5432"

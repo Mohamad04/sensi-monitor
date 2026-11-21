@@ -15,7 +15,8 @@ val sparkVersion = "4.2.1"
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % sparkVersion,
-  "org.apache.spark" %% "spark-sql-kafka-0-10" % sparkVersion
+  "org.apache.spark" %% "spark-sql-kafka-0-10" % sparkVersion,
+  "org.postgresql" % "postgresql" % "42.7.4"
 )
 
 // Spark needs these options with Java 17+
